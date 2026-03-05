@@ -2,6 +2,9 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+First check the location.
+cd redux-saga-next
+
 First, run the development server:
 
 ```bash

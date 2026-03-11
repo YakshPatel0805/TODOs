@@ -1,120 +1,83 @@
-// Create TODO
-import { takeLatest, call, put } from "redux-saga/effects";
+import { takeLatest, put } from 'redux-saga/effects';
+import axios from 'axios';
 import {
-    FETCH_TODOS_REQUEST, FETCH_TODOS_SUCCESS, FETCH_TODOS_FAILURE,
-    ADD_TODOS_FAILURE, ADD_TODOS_REQUEST, ADD_TODOS_SUCCESS, 
-    DELETE_TODOS_REQUEST, DELETE_TODOS_SUCCESS, DELETE_TODOS_FAILURE,
-    UPDATE_TODOS_REQUEST, UPDATE_TODOS_SUCCESS, UPDATE_TODOS_FAILURE,
-    TOGGLE_TODOS_REQUEST, TOGGLE_TODOS_SUCCESS, TOGGLE_TODOS_FAILURE
-} from "./todoActions";
+  FETCH_TODOS_REQUEST,
+  FETCH_TODOS_SUCCESS,
+  FETCH_TODOS_FAILURE,
+  CREATE_TODO_REQUEST,
+  CREATE_TODO_SUCCESS,
+  CREATE_TODO_FAILURE,
+  UPDATE_TODO_REQUEST,
+  UPDATE_TODO_SUCCESS,
+  UPDATE_TODO_FAILURE,
+  DELETE_TODO_REQUEST,
+  DELETE_TODO_SUCCESS,
+  DELETE_TODO_FAILURE,
+} from './todoActions';
 
-// API Function for fetch todo
-function fetchTodosAPI() {
-    return fetch("https://jsonplaceholder.typicode.com/todos?_limit=5")
-        .then((res) => res.json());
+function* fetchTodosSaga(action) {
+  try {
+    console.log('Fetching todos for userId:', action.payload);
+    const response = yield axios.get(`/api/todos?userId=${action.payload}`);
+    console.log('Todos fetched:', response.data);
+    yield put({ type: FETCH_TODOS_SUCCESS, payload: response.data.todos });
+  } catch (error) {
+    console.error('Fetch todos error:', error.response?.data || error.message);
+    const errorMsg = error.response?.data?.error || error.message;
+    yield put({ type: FETCH_TODOS_FAILURE, payload: errorMsg });
+  }
 }
 
-// API functions for Add todo
-function addTodoApi(title) {
-    return fetch("https://jsonplaceholder.typicode.com/todos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            title,
-            completed: false,
-        }),
-    }).then((res) => res.json());
+function* createTodoSaga(action) {
+  try {
+    const { userId, todo } = action.payload;
+    console.log('Creating todo:', { userId, todo });
+    const response = yield axios.post(`/api/todos?userId=${userId}`, todo);
+    console.log('Todo created:', response.data);
+    yield put({ type: CREATE_TODO_SUCCESS, payload: response.data.todo });
+  } catch (error) {
+    console.error('Create todo error:', error.response?.data || error.message);
+    const errorMsg = error.response?.data?.error || error.message;
+    yield put({ type: CREATE_TODO_FAILURE, payload: errorMsg });
+  }
 }
 
-// API function for delete todo
-function deleteTodoApi(id) {
-    return fetch(`https://jsonplaceholder.typicode.com/todos/${id}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-    }).then((res) => res.json());
-}
-
-// API function for update todo
-function updateTodoApi(id, title) {
-  return fetch(`https://jsonplaceholder.typicode.com/todos/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      title,
-      completed: false,
-    }),
-  }).then((res) => res.json());
-}
-
-
-// worker saga to fetch todos
-function* fetchTodosSaga() {
-    try {
-        const todos = yield call(fetchTodosAPI);
-        yield put({ type: FETCH_TODOS_SUCCESS, payload: todos });
-    } catch (error) {
-        yield put({ type: FETCH_TODOS_FAILURE, payload: error.message });
-    }
-}
-
-// worker saga to add todos
-function* addTodoSaga(action) {
-    try {
-        const newTodo = yield call(addTodoApi, action.payload);
-        yield put({ type: ADD_TODOS_SUCCESS, payload: newTodo });
-    } catch (error) {
-        yield put({ type: ADD_TODOS_FAILURE, payload: error.message });
-    }
-}
-
-// worker saga to delete todos
-function* deleteTodoSaga(action) {
-    try{
-        yield call(deleteTodoApi, action.payload);
-        yield put({ type: DELETE_TODOS_SUCCESS, payload: action.payload });
-    } catch (error) {
-        yield put({ type: DELETE_TODOS_FAILURE, payload:error.message})
-    }
-}
-
-// worker saga to update todos
 function* updateTodoSaga(action) {
-    try{
-        // Extract the _key and title from payload
-        const { _key, title } = action.payload;
-        
-        // For API calls, we need to find the original ID from the todo
-        // Since we're using _key for local state management, we'll just update locally
-        // without calling the API (or you can modify this to call API with a different approach)
-        
-        yield put({ 
-          type: UPDATE_TODOS_SUCCESS, 
-          payload: { _key, title } 
-        });
-    } catch (error) {
-        yield put({ type: UPDATE_TODOS_FAILURE, payload: error.message });
-    }
+  try {
+    const { title, userId, updates } = action.payload;
+    console.log('Update saga:', { title, userId, updates });
+    const response = yield axios.put(`/api/todos?title=${encodeURIComponent(title)}&userId=${userId}`, updates);
+    console.log('Todo updated response:', response.data);
+    yield put({ type: UPDATE_TODO_SUCCESS, payload: response.data.todo });
+  } catch (error) {
+    console.error('Update todo error:', error.response?.data || error.message);
+    const errorMsg = error.response?.data?.error || error.message;
+    yield put({ type: UPDATE_TODO_FAILURE, payload: errorMsg });
+  }
 }
 
-// worker saga to toggle todos
-function* toggleTodoSaga(action) {
-    try{
-        // Toggle is a local operation, no API call needed
-        yield put({ 
-          type: TOGGLE_TODOS_SUCCESS, 
-          payload: action.payload 
-        });
-    } catch (error) {
-        yield put({ type: TOGGLE_TODOS_FAILURE, payload: error.message });
+function* deleteTodoSaga(action) {
+  try {
+    const { title, userId } = action.payload;
+    console.log('Delete saga:', { title, userId });
+    const response = yield axios.delete(`/api/todos?title=${encodeURIComponent(title)}&userId=${userId}`);
+    console.log('Todo deleted response:', response.data);
+    if (response.data.todo && response.data.todo._id) {
+      yield put({ type: DELETE_TODO_SUCCESS, payload: response.data.todo._id });
+    } else {
+      console.error('No todo ID in response:', response.data);
+      yield put({ type: DELETE_TODO_FAILURE, payload: 'Failed to delete todo' });
     }
+  } catch (error) {
+    console.error('Delete todo error:', error.response?.data || error.message);
+    const errorMsg = error.response?.data?.error || error.message;
+    yield put({ type: DELETE_TODO_FAILURE, payload: errorMsg });
+  }
 }
 
-
-// Watcher saga
 export default function* todoSaga() {
-    yield takeLatest(FETCH_TODOS_REQUEST, fetchTodosSaga);
-    yield takeLatest(ADD_TODOS_REQUEST, addTodoSaga);
-    yield takeLatest(DELETE_TODOS_REQUEST, deleteTodoSaga);
-    yield takeLatest(UPDATE_TODOS_REQUEST, updateTodoSaga);
-    yield takeLatest(TOGGLE_TODOS_REQUEST, toggleTodoSaga);
+  yield takeLatest(FETCH_TODOS_REQUEST, fetchTodosSaga);
+  yield takeLatest(CREATE_TODO_REQUEST, createTodoSaga);
+  yield takeLatest(UPDATE_TODO_REQUEST, updateTodoSaga);
+  yield takeLatest(DELETE_TODO_REQUEST, deleteTodoSaga);
 }

@@ -1,5 +1,6 @@
 
 import { takeLatest, put, select } from "redux-saga/effects";
+import axios from "axios";
 import {
   SIGNUP_REQUEST,
   SIGNUP_SUCCESS,
@@ -13,31 +14,21 @@ import {
 
 function* signupSaga(action) {
   try {
-    // fake API
-    yield put({ type: SIGNUP_SUCCESS, payload: action.payload });
+    const response = yield axios.post("/api/auth/signup", action.payload);
+    yield put({ type: SIGNUP_SUCCESS, payload: response.data.user });
   } catch (error) {
-    yield put({ type: SIGNUP_FAILURE, payload: error.message });
+    const errorMsg = error.response?.data?.error || error.message;
+    yield put({ type: SIGNUP_FAILURE, payload: errorMsg });
   }
 }
 
 function* loginSaga(action) {
   try {
-    // Get the registered user from state
-    const state = yield select();
-    const registeredUser = state.auth.registeredUser;
-    
-    // Check if user is registered and credentials match
-    if (registeredUser && 
-        registeredUser.email === action.payload.email && 
-        registeredUser.password === action.payload.password) {
-      // Login successful
-      yield put({ type: LOGIN_SUCCESS, payload: action.payload });
-    } else {
-      // Dispatch failure action instead of alert
-      yield put({ type: LOGIN_FAILURE, payload: "Invalid credentials or user not registered. Please sign up first." });
-    }
+    const response = yield axios.post("/api/auth/login", action.payload);
+    yield put({ type: LOGIN_SUCCESS, payload: response.data.user });
   } catch (error) {
-    yield put({ type: LOGIN_FAILURE, payload: error.message });
+    const errorMsg = error.response?.data?.error || error.message;
+    yield put({ type: LOGIN_FAILURE, payload: errorMsg });
   }
 }
 

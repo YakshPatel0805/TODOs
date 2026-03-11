@@ -168,12 +168,17 @@ export default function Signup() {
   const [errors, setErrors] = useState({});
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const dispatch = useDispatch();
   const router = useRouter();
   const registeredUser = useSelector((s) => s.auth.registeredUser);
   const authError = useSelector((s) => s.auth.error);
   const loading = useSelector((s) => s.auth.loading);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const set = (k) => (e) =>
     setForm((f) => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
@@ -192,7 +197,7 @@ export default function Signup() {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length) return;
-    dispatch(signupRequest({ email: form.email, password: form.password }));
+    dispatch(signupRequest({ name: form.name, email: form.email, password: form.password }));
   };
 
   useEffect(() => { if (registeredUser) router.push("/login"); }, [registeredUser]);
@@ -218,7 +223,7 @@ export default function Signup() {
 
           <div className="divider" />
 
-          {authError && (
+          {mounted && authError && (
             <div className="error-banner"><span>⚠</span> {authError}</div>
           )}
 

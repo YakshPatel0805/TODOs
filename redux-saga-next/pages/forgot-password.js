@@ -1,7 +1,6 @@
-import { useDispatch, useSelector } from "react-redux";
-import { loginRequest } from "../store/auth/authActions";
-import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useState } from 'react';
+import { useRouter } from 'next/router';
+import axios from 'axios';
 
 const GlobalStyle = () => (
   <style>{`
@@ -65,7 +64,16 @@ const GlobalStyle = () => (
       margin: 1.6rem 0;
     }
 
-    /* Error banner */
+    .success-banner {
+      background: rgba(108,220,138,0.08);
+      border: 1px solid rgba(108,220,138,0.22);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.2rem;
+      font-size: 0.8rem; color: #6cdc8a;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+
     .error-banner {
       background: rgba(220,80,80,0.08);
       border: 1px solid rgba(220,80,80,0.22);
@@ -76,7 +84,6 @@ const GlobalStyle = () => (
       display: flex; align-items: center; gap: 0.5rem;
     }
 
-    /* Fields */
     .field { margin-bottom: 1.1rem; }
     .field-label {
       display: block;
@@ -111,24 +118,6 @@ const GlobalStyle = () => (
     }
     .toggle-btn:hover { color: #c8a96e; }
 
-    /* Remember / forgot row */
-    .meta-row {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 1.4rem;
-    }
-    .remember-row { display: flex; align-items: center; gap: 0.5rem; }
-    .remember-label { font-size: 0.75rem; color: #555; cursor: pointer; }
-    .checkbox { accent-color: #c8a96e; cursor: pointer; width: 14px; height: 14px; }
-    .forgot-btn {
-      background: none; border: none; cursor: pointer;
-      font-family: 'Outfit', sans-serif;
-      font-size: 0.72rem; color: #c8a96e; font-weight: 500;
-      letter-spacing: 0.05em; padding: 0;
-      transition: opacity 0.15s;
-    }
-    .forgot-btn:hover { opacity: 0.7; }
-
-    /* Submit */
     .submit-btn {
       width: 100%; padding: 0.9rem;
       background: linear-gradient(135deg, #c8a96e, #a07840);
@@ -141,15 +130,7 @@ const GlobalStyle = () => (
     .submit-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
     .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
-    /* Or divider */
-    .or-row {
-      display: flex; align-items: center; gap: 1rem; margin: 1.4rem 0;
-    }
-    .or-line { flex: 1; height: 1px; background: rgba(255,255,255,0.06); }
-    .or-text { font-size: 0.65rem; color: #3a3a3e; letter-spacing: 0.1em; text-transform: uppercase; }
-
-    /* Signup link */
-    .signup-link { text-align: center; font-size: 0.78rem; color: #555; }
+    .back-link { text-align: center; font-size: 0.78rem; color: #555; margin-top: 1.2rem; }
     .text-link {
       color: #c8a96e; cursor: pointer; font-weight: 500;
       background: none; border: none; font-family: 'Outfit', sans-serif;
@@ -159,44 +140,61 @@ const GlobalStyle = () => (
   `}</style>
 );
 
-export default function Login() {
-  const [form, setForm] = useState({ email: "", password: "", remember: false });
+export default function ForgotPassword() {
+  const [form, setForm] = useState({ email: '', newPassword: '', confirmPassword: '' });
   const [errors, setErrors] = useState({});
-  const [focused, setFocused] = useState("");
-  const [showPw, setShowPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [mounted, setMounted] = useState(false);
 
-  const dispatch = useDispatch();
   const router = useRouter();
-  const user = useSelector((s) => s.auth.user);
-  const authError = useSelector((s) => s.auth.error);
-  const loading = useSelector((s) => s.auth.loading);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const set = (k) => (e) =>
-    setForm((f) => ({ ...f, [k]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const validate = () => {
     const e = {};
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Enter a valid email address";
-    if (!form.password) e.password = "Password is required";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Enter a valid email address';
+    if (form.newPassword.length < 8) e.newPassword = 'Must be at least 8 characters';
+    if (form.newPassword !== form.confirmPassword) e.confirmPassword = 'Passwords do not match';
     return e;
   };
 
-  const handleLogin = () => {
+  const handleReset = async () => {
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length) return;
-    dispatch(loginRequest({ email: form.email, password: form.password }));
+
+    setLoading(true);
+    setErrorMsg('');
+    setSuccess(false);
+
+    try {
+      await axios.post('/api/auth/forgot-password', {
+        email: form.email,
+        newPassword: form.newPassword,
+        confirmPassword: form.confirmPassword,
+      });
+
+      setSuccess(true);
+      setForm({ email: '', newPassword: '', confirmPassword: '' });
+      setTimeout(() => router.push('/login'), 2000);
+    } catch (error) {
+      setErrorMsg(error.response?.data?.error || 'Failed to reset password');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  useEffect(() => { if (user) router.push("/profile"); }, [user]);
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const cls = (field) =>
-    ["input", errors[field] ? "error" : "", field === "password" ? "has-toggle" : ""].filter(Boolean).join(" ");
+  const cls = (field, extra = '') =>
+    ['input', errors[field] ? 'error' : '', extra].filter(Boolean).join(' ');
 
   return (
     <>
@@ -205,16 +203,22 @@ export default function Login() {
         <div className="card">
           <div className="card-glow" />
 
-          <div className="brand-label">Welcome Back</div>
+          <div className="brand-label">Reset Password</div>
 
-          <h1 className="heading">Sign <em>in.</em></h1>
-          <p className="subtitle">Enter your credentials to continue.</p>
+          <h1 className="heading">Recover <em>access.</em></h1>
+          <p className="subtitle">Enter your email and new password.</p>
 
           <div className="divider" />
 
-          {mounted && authError && (
+          {mounted && success && (
+            <div className="success-banner">
+              <span>✓</span> Password reset successfully. Redirecting to login...
+            </div>
+          )}
+
+          {mounted && errorMsg && (
             <div className="error-banner">
-              <span>⚠</span> {authError}
+              <span>⚠</span> {errorMsg}
             </div>
           )}
 
@@ -222,63 +226,74 @@ export default function Login() {
           <div className="field">
             <label className="field-label" htmlFor="email">Email Address</label>
             <input
-              id="email" type="email" placeholder="user@example.com"
-              className={cls("email")}
-              value={form.email} onChange={set("email")}
-              onFocus={() => setFocused("email")} onBlur={() => setFocused("")}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              id="email"
+              type="email"
+              placeholder="user@example.com"
+              className={cls('email')}
+              value={form.email}
+              onChange={set('email')}
               autoComplete="email"
             />
             {errors.email && <div className="error-msg">{errors.email}</div>}
           </div>
 
-          {/* Password */}
+          {/* New Password */}
           <div className="field">
-            <label className="field-label" htmlFor="password">Password</label>
+            <label className="field-label" htmlFor="newPassword">New Password</label>
             <div className="input-wrap">
               <input
-                id="password" type={showPw ? "text" : "password"}
-                placeholder="Enter your password"
-                className={cls("password")}
-                value={form.password} onChange={set("password")}
-                onFocus={() => setFocused("password")} onBlur={() => setFocused("")}
-                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                autoComplete="current-password"
+                id="newPassword"
+                type={showNewPw ? 'text' : 'password'}
+                placeholder="Min. 8 characters"
+                className={cls('newPassword', 'has-toggle')}
+                value={form.newPassword}
+                onChange={set('newPassword')}
+                autoComplete="new-password"
               />
-              <button className="toggle-btn" type="button" onClick={() => setShowPw(!showPw)}>
-                {showPw ? "Hide" : "Show"}
+              <button
+                className="toggle-btn"
+                type="button"
+                onClick={() => setShowNewPw(!showNewPw)}
+              >
+                {showNewPw ? 'Hide' : 'Show'}
               </button>
             </div>
-            {errors.password && <div className="error-msg">{errors.password}</div>}
+            {errors.newPassword && <div className="error-msg">{errors.newPassword}</div>}
           </div>
 
-          {/* Remember + Forgot */}
-          <div className="meta-row">
-            <div className="remember-row">
+          {/* Confirm Password */}
+          <div className="field">
+            <label className="field-label" htmlFor="confirmPassword">Confirm Password</label>
+            <div className="input-wrap">
               <input
-                type="checkbox" id="remember" className="checkbox"
-                checked={form.remember} onChange={set("remember")}
+                id="confirmPassword"
+                type={showConfirmPw ? 'text' : 'password'}
+                placeholder="Re-enter password"
+                className={cls('confirmPassword', 'has-toggle')}
+                value={form.confirmPassword}
+                onChange={set('confirmPassword')}
+                autoComplete="new-password"
               />
-              <label htmlFor="remember" className="remember-label">Remember me</label>
+              <button
+                className="toggle-btn"
+                type="button"
+                onClick={() => setShowConfirmPw(!showConfirmPw)}
+              >
+                {showConfirmPw ? 'Hide' : 'Show'}
+              </button>
             </div>
-            <button className="forgot-btn" type="button" onClick={() => router.push("/forgot-password")}>
-              Forgot password?
-            </button>
+            {errors.confirmPassword && <div className="error-msg">{errors.confirmPassword}</div>}
           </div>
 
-          <button className="submit-btn" onClick={handleLogin} disabled={loading}>
-            {loading ? "Signing in…" : "Sign In →"}
+          <button className="submit-btn" onClick={handleReset} disabled={loading}>
+            {loading ? 'Resetting...' : 'Reset Password →'}
           </button>
 
-          <div className="or-row">
-            <div className="or-line" />
-            <span className="or-text">or</span>
-            <div className="or-line" />
-          </div>
-
-          <div className="signup-link">
-            Don't have an account?{" "}
-            <button className="text-link" onClick={() => router.push("/signup")}>Create one</button>
+          <div className="back-link">
+            Remember your password?{' '}
+            <button className="text-link" onClick={() => router.push('/login')}>
+              Sign in
+            </button>
           </div>
         </div>
       </div>

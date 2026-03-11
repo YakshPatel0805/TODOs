@@ -142,7 +142,7 @@ npm install
 3. **Set up environment variables**
 Create a `.env.local` file in the root directory:
 ```
-MONGODB_URI=mongodb://localhost:27017/TODOs
+MONGODB_URI=mongodb://localhost:27017/redux-saga-next
 NODE_ENV=development
 ```
 
